@@ -1,0 +1,48 @@
+---
+- name: Ensure dependencies are installed.
+  apt:
+    name:
+      - ca-certificates
+      - apt-transport-https
+      - python3-pip
+    state: present
+
+- name: install python dependencies
+  pip:
+    name:
+      - jsondiff 
+      - pyyaml
+      - docker
+
+- name: Ajoute la clé gpg pour docker
+  apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+    state: present
+
+- name: Ajoute la source apt pour docker
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { src: 'sources.list.j2',    dest: "/etc/apt/sources.list.d/docker.list", desc: 'Source APT pour Docker' }
+  loop_control:
+    label: "{{ item.desc }}"
+
+- name: Installation de docker
+  apt:
+    update_cache: yes
+    install_recommends: no
+    name:
+      - "docker-{{ edition }}"
+      - "docker-{{ edition }}-cli"
+      - containerd.io
+    state: present
+
+- name: Start docker
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+    masked: no
+

@@ -1,0 +1,70 @@
+---
+
+- name: Récuperer la configuration ceph
+  delegate_to: "{{ groups['mons'][0] }}"
+  run_once: true
+  slurp:
+    src: "{{ item }}"
+  register: conf_ceph
+  with_items:
+    - "/etc/ceph/ceph.client.admin.keyring"
+    - "/etc/ceph/ceph.conf"
+    - "/var/lib/ceph/bootstrap-osd/ceph.keyring"
+
+- name: Copier la configuration ceph
+  copy:
+    dest: "{{ item.item }}"
+    content: "{{ item.content|b64decode }}"
+  when: inventory_hostname != groups['mons'][0]
+  with_items:
+    - "{{ conf_ceph.results }}"
+  loop_control:
+    label: "{{ item.source }}"
+
+- name: Gestion des permissions sur la clé
+  file:
+    path: "{{ item.path }}"
+    owner: ceph
+    group: ceph
+    mode: "{{ item.mode }}"
+  with_items:
+    - { path: "/etc/ceph/ceph.client.admin.keyring", mode: '0600' }
+    - { path: "/etc/ceph/ceph.conf", mode: '0644' }
+    - { path: "/var/lib/ceph/bootstrap-osd/ceph.keyring", mode: '0600' }
+  loop_control:
+    label: "{{ item.path }}"
+
+
+- name: Creation du répertoire du monitor
+  file:
+    path: "/var/lib/ceph/mon/ceph-{{ ansible_facts['hostname'] }}"
+    state: 'directory'
+    owner: ceph
+    group: ceph
+
+- name: Récupération de la carte des monitors
+  shell: >
+    ceph mon getmap -o /tmp/monmap
+
+- name: Récupération de la clé des monitors
+  shell: >
+    ceph auth get mon. -o /tmp/auth
+
+- name: Vérifie l'absence du fs du monitor
+  register: stat_fs
+  stat:
+    path: "/var/lib/ceph/mon/ceph-{{ ansible_facts['hostname'] }}/store.db"
+
+- name: Création du FS du monitor
+  when: not stat_fs.stat.exists
+  shell: >
+    ceph-mon -i "{{ ansible_facts['hostname'] }}" --mkfs --monmap /tmp/monmap --keyring /tmp/auth
+
+- name: Gestion des permissions des données ceph
+  file:
+    path: "/var/lib/ceph"
+    state: 'directory'
+    recurse: 'yes'
+    owner: ceph
+    group: ceph
+

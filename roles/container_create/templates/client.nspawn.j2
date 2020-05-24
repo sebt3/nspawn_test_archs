@@ -1,0 +1,20 @@
+[Files]
+#Bind={{ device }}
+{% for file in devs['files'] %}
+Bind={{ file['path'] }}
+{% endfor %}
+
+
+Bind=/dev/{{ vg }}/{{ lv }}
+Bind=/dev/fuse
+Bind=/dev/mapper/control
+Bind=/run/udev/
+Bind=/sys/fs/cgroup/
+Bind=/proc/sys/net/
+Bind=/lib/modules/
+
+[Exec]
+Boot=true
+Capability=all
+SystemCallFilter=add_key keyctl
+

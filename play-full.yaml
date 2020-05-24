@@ -1,0 +1,36 @@
+---
+- name: Build the containers
+  hosts: machines
+  roles:
+    - nspawn_install
+    - container_create
+
+- name: Install CEPH in the containers and setup monitors
+  hosts: mons
+  roles:
+    - ceph_mons
+
+- name: Install CEPH in the containers and setup osds
+  hosts: osds
+  roles:
+    - ceph_osds
+
+- name: Configure ceph applications
+  hosts: containers
+  roles:
+    - ceph_apps
+
+- name: Install docker in the containers (master)
+  hosts: masters
+  roles: 
+    - docker_masters
+
+- name: Install docker in the containers (slaves)
+  hosts: slaves
+  roles: 
+    - docker_slaves
+
+- name: Install les apps docker
+  hosts: masters,slaves
+  roles: 
+    - docker_apps

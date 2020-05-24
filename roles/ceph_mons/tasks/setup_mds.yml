@@ -1,0 +1,33 @@
+---
+- name: Création du répertoire pour le mds
+  file:
+    path: "/var/lib/ceph/mds/ceph-{{ ansible_facts['hostname'] }}"
+    owner: ceph
+    group: ceph
+    state: "directory"
+
+- name: Vérifier l'absence du fichier de clé
+  register: stat_key
+  stat:
+    path: "/var/lib/ceph/mds/ceph-{{ ansible_facts['hostname'] }}/keyring"
+- name: Obtenir la clé d'authentification du MDS
+  when: not stat_key.stat.exists
+  shell: >
+    ceph auth get-or-create "mds.{{ ansible_facts['hostname'] }}" osd "allow rwx" mds "allow" mon "allow profile mds">"/var/lib/ceph/mds/ceph-{{ ansible_facts['hostname'] }}/keyring"
+
+- name: Gestion des permissions des données ceph
+  file:
+    path: "/var/lib/ceph"
+    state: 'directory'
+    recurse: 'yes'
+    owner: ceph
+    group: ceph
+
+- name: Activation du mds
+  systemd:
+    daemon_reload: yes
+    state: started
+    enabled: yes
+    masked: no
+    name: "ceph-mds@{{ ansible_facts['hostname'] }}"
+

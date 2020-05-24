@@ -1,0 +1,12 @@
+---
+- name: Ne pas utiliser les règles udev
+  lineinfile:
+    path: "/etc/lvm/lvm.conf"
+    regexp: 'udev_rules ='
+    line: '        udev_rules = 0'
+  
+- name: Ne pas utiliser de synchro udev
+  lineinfile:
+    path: "/etc/lvm/lvm.conf"
+    regexp: 'udev_sync ='
+    line: '        udev_sync = 0'

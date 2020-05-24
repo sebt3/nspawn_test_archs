@@ -1,0 +1,17 @@
+---
+- name: Creation du point de montage
+  file:
+    path: "/mnt/ceph"
+    state: "directory"
+
+- name: Configuration du montage
+  lineinfile:
+    path: "/etc/fstab"
+    regexp: ' \/mnt\/ceph'
+    line: 'none  /mnt/ceph   fuse.ceph  ceph.client_mountpoint=/,defaults,_netdev,noauto 0  0'
+
+- name: Créer le keyring pour docker
+  run_once: true
+  shell: >
+    ceph auth get-or-create client.dockeruser mon 'allow r' osd 'allow rw' mds 'allow' > /etc/ceph/ceph.client.dockeruser.keyring
+

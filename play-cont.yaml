@@ -1,0 +1,7 @@
+---
+- name: Build the containers
+  hosts: machines
+  roles:
+    - nspawn_install
+    - container_create
+

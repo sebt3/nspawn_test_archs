@@ -1,0 +1,4 @@
+---
+device: /dev/vdb
+vg: ceph
+lv: ceph

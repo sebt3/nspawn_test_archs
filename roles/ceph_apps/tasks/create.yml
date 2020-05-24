@@ -1,0 +1,26 @@
+---
+- name: Créer le pool metadata de cephfs
+  run_once: true
+  shell: >
+    ceph osd pool create cephfs_metadata "{{ cephfs_metadata_pg }}"
+
+- name: Activer cephfs sur ce pool
+  run_once: true
+  shell: >
+    ceph osd pool application enable cephfs_metadata cephfs
+
+- name: Créer le pool data de cephfs
+  run_once: true
+  shell: >
+    ceph osd pool create cephfs_data "{{ cephfs_data_pg }}"
+
+- name: Activer cephfs sur ce pool
+  run_once: true
+  shell: >
+    ceph osd pool application enable cephfs_data cephfs
+
+- name: Créer le filesystem
+  run_once: true
+  shell: >
+    ceph fs new cephfs cephfs_metadata cephfs_data
+

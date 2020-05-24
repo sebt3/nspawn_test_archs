@@ -1,0 +1,27 @@
+---
+- name: Obtenir l'ID du cluster ceph
+  register: cluster_id
+  shell: >
+    awk '$1=="fsid"{print $3}' /etc/ceph/ceph.conf
+
+- name: Configuration finale du cluster
+  template:
+    src: ceph-final.conf.j2
+    dest: /etc/ceph/ceph.conf
+
+- name: Démarage des monitors
+  systemd:
+    daemon_reload: yes
+    state: started
+    enabled: yes
+    masked: no
+    name: "ceph-mon@{{ ansible_facts['hostname'] }}"
+
+- name: Donner 30s de délai pour permettre au quorum de se former
+  wait_for:
+    timeout: 30
+
+- name: activer le protocole v2
+  when: inventory_hostname == groups['mons'][0]
+  shell: >
+    ceph mon enable-msgr2

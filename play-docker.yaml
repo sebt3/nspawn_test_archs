@@ -1,0 +1,15 @@
+---
+- name: Install docker in the containers (master)
+  hosts: masters
+  roles: 
+    - docker_masters
+
+- name: Install docker in the containers (slave)
+  hosts: slaves
+  roles: 
+    - docker_slaves
+
+- name: Install des applis docker
+  hosts: masters,slaves
+  roles: 
+    - docker_apps

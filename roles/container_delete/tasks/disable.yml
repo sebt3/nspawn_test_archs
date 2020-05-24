@@ -1,0 +1,7 @@
+---
+- name: Disable the container_name nspawn
+  systemd:
+    state: stopped
+    name: "systemd-nspawn@{{ container_name }}"
+    enabled: no
+

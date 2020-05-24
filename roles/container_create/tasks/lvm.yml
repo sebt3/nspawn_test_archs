@@ -1,0 +1,19 @@
+---
+- name: Installation de lvm2
+  apt:
+    name:
+      - lvm2
+    state: present
+
+- name: Creation du vg
+  lvg:
+    vg: "{{ vg }}"
+    pvs: "{{ device }}"
+
+- name: Création du lv
+  lvol:
+    vg: "{{ vg }}"
+    lv: "{{ lv }}"
+    size: +100%FREE
+
+

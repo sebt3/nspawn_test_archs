@@ -1,0 +1,26 @@
+---
+- name: Vérifier l'absence du fichier de lock
+  register: stat_lock
+  stat:
+    path: "/var/lib/machines/.#{{ container_name }}.lck"
+- name: Installation de sshd et python3
+  when: not stat_lock.stat.exists
+  shell: > 
+    systemd-nspawn -D "/var/lib/machines/{{ container_name }}" --machine "{{ container_name }}" apt-get -y install openssh-server python3 sudo
+
+- name: Changer le port de sshd
+  lineinfile:
+    path: "/var/lib/machines/{{ container_name }}/etc/ssh/sshd_config"
+    regexp: 'Port '
+    line: Port 2222
+
+- name: Copier la config ssh de root
+  synchronize:
+    src: /root/.ssh
+    dest: "/var/lib/machines/{{ container_name }}/root/"
+  delegate_to: "{{ ansible_hostname }}"
+
+#- name: Corrige les permissions
+#  file:
+#    path: "/var/lib/machines/{{ container_name }}/root/.ssh"
+#    mode: '0700'

@@ -1,0 +1,6 @@
+---
+container_name: infra
+dist: buster
+device: /dev/vdb
+vg: ceph
+lv: ceph

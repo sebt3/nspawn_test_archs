@@ -1,0 +1,35 @@
+---
+- name: Ensure dependencies are installed.
+  apt:
+    name:
+      - curl
+      - gpg
+      - ca-certificates
+    state: present
+
+- name: Ajoute la clé gpg pour ceph
+  apt_key:
+    url: https://download.ceph.com/keys/release.asc
+    state: present
+
+- name: Ajoute la source apt pour ceph
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { src: 'sources.list.j2',    dest: "/etc/apt/sources.list.d/ceph.list", desc: 'Source APT pour CEPH' }
+  loop_control:
+    label: "{{ item.desc }}"
+
+- name: Installation de ceph-osd
+  apt:
+    update_cache: yes
+    install_recommends: no
+    name:
+      - lsof
+      - uuid-runtime
+      - rbd-nbd
+      - ceph-osd
+      - ceph-fuse
+    state: present
+

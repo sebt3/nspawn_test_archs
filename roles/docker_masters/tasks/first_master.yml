@@ -1,0 +1,12 @@
+---
+- name: Activate swarm
+  docker_swarm:
+    state: present
+    advertise_addr: "{{ ansible_default_ipv4['address'] }}"
+      
+- name: Create the "public" network
+  docker_network:
+    name: public
+    state: present
+    driver: overlay
+

@@ -1,0 +1,16 @@
+---
+- name: Install CEPH in the containers and setup monitors
+  hosts: mons
+  roles:
+    - ceph_mons
+
+- name: Install CEPH in the containers and setup osds
+  hosts: osds
+  roles:
+    - ceph_osds
+
+- name: Configure ceph applications
+  hosts: containers
+  roles:
+    - ceph_apps
+

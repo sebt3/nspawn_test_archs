@@ -1,0 +1,29 @@
+---
+- name: Preparation
+  include_tasks: prepare.yml
+
+- name: installation des binaires ceph
+  include_tasks: install.yml
+
+- name: Prepare le cluster en mode "single-node"
+  include_tasks: setup_first_mon.yml
+  when: inventory_hostname == groups['mons'][0]
+
+- name: Création des autres monitors
+  include_tasks: setup_other_mon.yml
+  when: inventory_hostname != groups['mons'][0]
+
+- name: Arrêt du premier monitor
+  when: inventory_hostname == groups['mons'][0]
+  systemd:
+    name: "ceph-mon@{{ ansible_facts['hostname'] }}"
+    state: stopped
+
+- name: Finalisation des monitors
+  include_tasks: final_mon.yml
+
+- name: Ajout des managers
+  include_tasks: setup_mgr.yml
+
+- name: Création des MDS
+  include_tasks: setup_mds.yml

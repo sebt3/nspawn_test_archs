@@ -1,0 +1,8 @@
+---
+- name: Creation du filesystem
+  include_tasks: create.yml
+  when: inventory_hostname == groups['mons'][0]
+
+- name: Configuration du montage sur tous les containers
+  include_tasks: use.yml
+

@@ -1,0 +1,51 @@
+---
+- name: Ensure dependencies are installed.
+  apt:
+    name:
+      - curl
+      - gpg
+      - ca-certificates
+      - sudo
+    state: present
+
+- name: Ajoute la clé gpg pour ceph
+  apt_key:
+    url: https://download.ceph.com/keys/release.asc
+    state: present
+
+- name: Ajoute la source apt pour ceph
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { src: 'sources.list.j2',    dest: "/etc/apt/sources.list.d/ceph.list", desc: 'Source APT pour CEPH' }
+  loop_control:
+    label: "{{ item.desc }}"
+
+- name: interdit l'installation de docker.io et quelques autres
+  dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  with_items:
+    - docker.io
+    - ceph-mgr-cephadm
+    - cephadm
+    - ceph-fuse
+    - ceph-mgr-k8sevents
+    - ceph-mgr-diskprediction-cloud
+    - ceph-mgr-rook
+
+- name: Installation de ceph
+  apt:
+    update_cache: yes
+    install_recommends: no
+    name:
+      - uuid-runtime
+      - ceph-mds
+      - ceph-mon
+      - ceph-mgr
+      - ceph-mgr-dashboard
+      - python3-yaml
+      - python3-distutils
+    state: present
+

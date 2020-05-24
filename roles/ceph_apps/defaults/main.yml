@@ -1,0 +1,4 @@
+---
+cephfs_data_pg: 64
+cephfs_metadata_pg: 32
+

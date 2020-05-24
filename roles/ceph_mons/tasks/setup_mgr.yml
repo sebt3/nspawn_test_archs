@@ -1,0 +1,48 @@
+---
+- name: Création du répertoire pour le manager
+  file:
+    path: "/var/lib/ceph/mgr/ceph-{{ ansible_facts['hostname'] }}"
+    owner: ceph
+    group: ceph
+    state: "directory"
+
+- name: Obtenir le keyring du manager
+  shell: >
+    ceph auth get-or-create "mgr.{{ ansible_facts['hostname'] }}" mon 'allow profile mgr' osd 'allow *' mds 'allow *'>"/var/lib/ceph/mgr/ceph-{{ ansible_facts['hostname'] }}/keyring"
+
+- name: Gestion des permissions des données ceph
+  file:
+    path: "/var/lib/ceph"
+    state: 'directory'
+    recurse: 'yes'
+    owner: ceph
+    group: ceph
+
+- name: Activation du manager
+  systemd:
+    daemon_reload: yes
+    state: started
+    enabled: yes
+    masked: no
+    name: "ceph-mgr@{{ ansible_facts['hostname'] }}"
+
+- name: Activation du Dashboard
+  run_once: true
+  shell: >
+    ceph mgr module enable dashboard --force
+
+- name: Création des certificats pour le dashboard
+  run_once: true
+  register: result
+  until: result.rc == 0
+  retries: 5
+  delay: 10
+  shell: >
+    ceph dashboard create-self-signed-cert
+  
+
+- name: Activation du support de prometheus
+  run_once: true
+  shell: >
+    ceph mgr module enable prometheus
+

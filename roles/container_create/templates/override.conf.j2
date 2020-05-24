@@ -1,0 +1,15 @@
+[Service]
+ExecStart=
+ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --settings=override --machine=%i
+DevicePolicy=auto
+DeviceAllow=block-* rwm
+DeviceAllow=char-* rwm
+DeviceAllow={{ device }}
+DeviceAllow=/dev/mapper/* rwm
+DeviceAllow=block-device-mapper rwm
+DeviceAllow=/dev/fuse rwm
+Environment=SYSTEMD_NSPAWN_MOUNT_RW=1
+Environment=SYSTEMD_NSPAWN_API_VFS_WRITABLE=1
+Environment=SYSTEMD_NSPAWN_USE_CGNS=0
+
+

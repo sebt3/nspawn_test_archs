@@ -1,0 +1,11 @@
+---
+- name: Installation des binaires
+  include_tasks: install.yml
+
+- name: Configuration du 1er master
+  include_tasks: first_master.yml
+  when: inventory_hostname == groups['masters'][0]
+
+- name: Configuration des autres master
+  include_tasks: other_master.yml
+  when: inventory_hostname != groups['masters'][0]

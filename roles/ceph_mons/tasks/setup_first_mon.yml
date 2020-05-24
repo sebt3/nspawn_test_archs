@@ -1,0 +1,105 @@
+---
+- name: Vérifie l'absence de ceph.conf
+  register: stat_conf
+  stat:
+    path: /etc/ceph/ceph.conf
+
+- name: Definir l'ID du cluster ceph
+  when: not stat_conf.stat.exists
+  register: cluster_id_tmp
+  shell: >
+    uuidgen
+- set_fact: cluster_id="{{cluster_id_tmp}}"
+  when: cluster_id_tmp.changed
+
+- name: Obtenir l'ID du cluster ceph
+  register: cluster_id_tmp
+  when: stat_conf.stat.exists
+  shell: >
+    awk '$1=="fsid"{print $3}' /etc/ceph/ceph.conf
+- set_fact: cluster_id="{{cluster_id_tmp}}"
+  when: cluster_id_tmp.changed
+
+- name: Configuration d'un cluster single node
+  template:
+    src: ceph-simple.conf.j2
+    dest: /etc/ceph/ceph.conf
+
+- name: Vérifie l'absence du keyring du monitor
+  register: stat_mon
+  stat:
+    path: /tmp/ceph.mon.keyring
+
+- name: Crée le keyring du monitor
+  when: not stat_mon.stat.exists
+  shell: >
+    ceph-authtool --create-keyring /tmp/ceph.mon.keyring --gen-key -n mon. --cap mon 'allow *'
+
+- name: Vérifie l'absence du keyring d'admin
+  register: stat_admin
+  stat:
+    path: /etc/ceph/ceph.client.admin.keyring
+
+- name: Création du keyring d'admin
+  when: not stat_admin.stat.exists
+  shell: |
+    ceph-authtool --create-keyring /etc/ceph/ceph.client.admin.keyring --gen-key -n client.admin --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow *' --cap mgr 'allow *'
+    ceph-authtool /tmp/ceph.mon.keyring --import-keyring /etc/ceph/ceph.client.admin.keyring
+
+- name: Vérifie l'absence du keyring osd
+  register: stat_osd
+  stat:
+    path: /var/lib/ceph/bootstrap-osd/ceph.keyring
+
+- name: Création du keyring osd
+  when: not stat_osd.stat.exists
+  shell: |
+    ceph-authtool --create-keyring /var/lib/ceph/bootstrap-osd/ceph.keyring --gen-key -n client.bootstrap-osd --cap mon 'profile bootstrap-osd'
+    ceph-authtool /tmp/ceph.mon.keyring --import-keyring /var/lib/ceph/bootstrap-osd/ceph.keyring
+
+- name: Vérifie l'absence du monmap
+  register: stat_map
+  stat:
+    path: /tmp/monmap
+
+- name: Création de la monmap
+  when: not stat_map.stat.exists
+  shell: >
+    monmaptool --create --add {{ ansible_facts['hostname'] }} {{ ansible_facts['default_ipv4']['address'] }} --fsid {{ cluster_id['stdout'] }} /tmp/monmap
+
+- name: Gestion des permissions sur les clés
+  file:
+    path: "{{ item.path }}"
+    owner: ceph
+    group: ceph
+    state: "{{ item.state }}"
+    recurse: "{{ item.r }}"
+  with_items:
+    - { path: "/tmp/monmap", state: "file", r: "no" }
+    - { path: "/tmp/ceph.mon.keyring", state: "file", r: "no" }
+    - { path: "/var/lib/ceph/.ansible/tmp", state: "directory", r: "no" }
+    - { path: "/var/lib/ceph/mon/ceph-{{ ansible_facts['hostname'] }}", state: "directory", r: "no" }
+    - { path: "/var/lib/ceph", state: "directory", r: "yes" }
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Vérifie l'absence du fs du monitor
+  register: stat_fs
+  stat:
+    path: "/var/lib/ceph/mon/ceph-{{ ansible_facts['hostname'] }}/store.db"
+- name: Création du monitor
+  when: not stat_fs.stat.exists
+  become: yes
+  become_user: ceph
+  become_method: sudo
+  shell: >
+    ceph-mon --mkfs -i "{{ ansible_facts['hostname'] }}" --monmap /tmp/monmap --keyring /tmp/ceph.mon.keyring
+
+- name: Démarage du monitor
+  systemd:
+    daemon_reload: yes
+    state: started
+    enabled: yes
+    masked: no
+    name: "ceph-mon@{{ ansible_facts['hostname'] }}"
+

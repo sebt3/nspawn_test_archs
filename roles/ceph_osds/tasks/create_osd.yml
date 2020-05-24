@@ -1,0 +1,162 @@
+---
+# Attention cette partie du playbook est clairement pas ré-entrante. 
+# Si vous relancer une 2eme fois, c'est perte de données assurée
+# et ... la config de ceph sera pourrie jusqu'a l'os
+
+- debug:
+    msg:
+      - "Attention cette partie du playbook est clairement pas ré-entrante."
+      - "Si vous relancer une 2eme fois, c'est perte de données assurée"
+      - "et ... la config de ceph sera pourrie jusqu'a l'os"
+  run_once: true
+- wait_for:
+    timeout: 60
+  run_once: true
+
+- name: Mettre ceph dans le group disk
+  shell: >
+    adduser ceph disk
+
+- name: Création du répertoire d'override
+  file:
+    path: /etc/systemd/system/ceph-osd@.service.d
+    state: directory
+
+- name: Patcher le démarrage de l'OSD
+  template:
+    src: override.conf.j2
+    dest: /etc/systemd/system/ceph-osd@.service.d/override.conf
+
+- name: Vérifier l'absence du fichier pour l'uuid
+  register: stat_uuid
+  stat:
+    path: /tmp/osd-uuid
+- name: Definir le uuid pour l'OSD
+  when: not stat_uuid.stat.exists
+  register: osd_uuid_tmp
+  shell: >
+    uuidgen| tee /root/osd-uuid
+- set_fact: osd_uuid="{{osd_uuid_tmp}}"
+  when: osd_uuid_tmp.changed
+- name: Obtenir le uuid pour l'OSD
+  register: osd_uuid
+  when: stat_uuid.stat.exists
+  shell: >
+    cat /root/osd-uuid
+- set_fact: osd_uuid="{{osd_uuid_tmp}}"
+  when: osd_uuid_tmp.changed
+
+- name: Vérifier l'absence du fichier d'ID
+  register: stat_id
+  stat:
+    path: /root/osd-id
+- name: Definir l'ID de l'OSD
+  when: not stat_id.stat.exists
+  register: osd_id_tmp
+  shell: >
+    ceph osd create "{{ osd_uuid['stdout'] }}"| tee /root/osd-id
+  throttle: 1
+- set_fact: osd_id="{{osd_id_tmp}}"
+  when: osd_uuid_tmp.changed
+- name: Obtenir l'ID de l'OSD
+  register: osd_id_tmp
+  when: stat_id.stat.exists
+  shell: >
+    cat /root/osd-id
+- set_fact: osd_id="{{osd_id_tmp}}"
+  when: osd_id_tmp.changed
+
+- name: Créer le bucket de la machine
+  shell: >
+    ceph osd crush add-bucket "{{ ansible_facts['hostname'] }}" host
+- name: Déplacer le bucket à sa place
+  shell: >
+    ceph osd crush move "{{ ansible_facts['hostname'] }}" root=default
+- name: "\"Crush\" de l'OSD dans le bucket de la machine"
+  shell: >
+    ceph osd crush add "osd.{{ osd_id['stdout'] }}" 1.0 "host={{ ansible_facts['hostname'] }}"
+
+- name: Création du point de données osd
+  file:
+    path: "/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}"
+    owner: ceph
+    group: ceph
+    state: "directory"
+
+#- name: Vérifier que le FS n'est pas créé
+#  register: osd_fs
+#  ignore_errors: yes
+#  shell: >
+#    blkid {{ device }}
+
+#- name: Création du FS
+#  when: osd_fs['rc'] != 0
+#  shell: >
+#    mkfs.xfs -f {{ device }}
+
+#- name: Mount du FS de l'OSD
+#  mount:
+#    path: "/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}"
+#    src: "{{ device }}"
+#    fstype: xfs
+#    state: mounted
+
+- name: Vérifier l'absence du fichier de clé
+  register: stat_key
+  stat:
+    path: "/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}/keyring"
+- name: Obtenir la clé d'authentification de l'OSD
+  when: not stat_key.stat.exists
+  shell: >
+    ceph auth get-or-create "osd.{{ osd_id['stdout'] }}" osd 'allow *' mon 'allow profile osd' >"/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}/keyring"
+
+#- name: Vérifier l'absence des données de l'OSD
+#  register: stat_fs
+#  stat:
+#    path: "/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}/block"
+#- name: Création des données de l'OSD
+#  when: not stat_fs.stat.exists
+#  shell: >
+#    ceph-osd -i "{{ osd_id['stdout'] }}" --mkfs --mkkey --osd-uuid "{{ osd_uuid['stdout'] }}"
+
+- name: Création du lien vers le block
+  file:
+    path: "/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}/block"
+    src: "/dev/{{ vg }}/{{ lv }}"
+    state: "link"
+
+- name: Vérifier l'absence des données de l'OSD
+  register: stat_fs
+  stat:
+    path: "/var/lib/ceph/osd/ceph-{{ osd_id['stdout'] }}/mkfs_done"
+- name: Création des données de l'OSD
+  when: not stat_fs.stat.exists
+  shell: >
+    ceph-osd --osd-objectstore bluestore --mkfs -i "{{ osd_id['stdout'] }}" --osd-uuid "{{ osd_uuid['stdout'] }}"
+
+- name: Gestion des permissions des données ceph
+  file:
+    path: "/var/lib/ceph"
+    state: 'directory'
+    recurse: 'yes'
+    owner: ceph
+    group: ceph
+  with_items:
+    - "/var/lib/ceph"
+    - "/var/log/ceph"
+
+- name: Activation de l'OSD
+  systemd:
+    daemon_reload: yes
+    state: started
+    enabled: yes
+    masked: no
+    name: "ceph-osd@{{ osd_id['stdout'] }}"
+
+
+# Version simple de tout ce qui est en haut, mais qui ne marche pas :(
+#- name: Création des OSDs
+#  shell: >
+#    ceph-volume raw prepare --bluestore --data "{{ device }}"
+#  throttle: 1
+

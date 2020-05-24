@@ -1,0 +1,19 @@
+[global]
+fsid = {{ cluster_id['stdout'] }}
+mon initial members = {{ ansible_facts['hostname'] }}
+mon host = {{ ansible_facts['default_ipv4']['address'] }}
+public network = {{ ansible_facts['default_ipv4']['network'] }}/24
+cluster network = {{ ansible_facts['default_ipv4']['network'] }}/24
+auth cluster required = cephx
+auth service required = cephx
+auth client required = cephx
+osd journal size = 1024
+osd pool default size = 3
+osd pool default min size = 2
+osd pool default pg num = 32
+osd pool default pgp num = 32
+osd crush chooseleaf type = 1
+
+[mon.{{ ansible_facts['hostname'] }}]
+host = {{ ansible_facts['hostname'] }}
+mon_addr = {{ ansible_facts['default_ipv4']['address'] }}:6789

@@ -1,0 +1,14 @@
+---
+- name: Configuration du fichier /etc/hosts
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+
+- name: Création des répertoires ceph manquant
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  with_items:
+    - "/var/lib/ceph/bootstrap-osd"
+    - "/etc/ceph"

@@ -1,0 +1,6 @@
+---
+- include_tasks: lvm.yml
+- include_tasks: bootstrap.yml
+- include_tasks: configs.yml
+- include_tasks: setup.yml
+- include_tasks: start.yml

@@ -1,0 +1,7 @@
+---
+# https://github.com/Brindster/docker-plugin-cephfs
+- name: Installer le plugin cephfs
+  ignore_errors: yes
+  shell: >
+    docker plugin install --alias cephfs brindster/docker-plugin-cephfs CLUSTER_NAME=ceph CLIENT_NAME=dockeruser SERVERS="{% for a in groups['mons'] %}{{ hostvars[a].ansible_facts.default_ipv4.address }}{% if not loop.last %},{% endif %}{% endfor %}" --grant-all-permissions
+

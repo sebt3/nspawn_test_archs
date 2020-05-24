@@ -1,0 +1,9 @@
+---
+- name: Preparation
+  include_tasks: prepare.yml
+
+- name: installation des binaires ceph
+  include_tasks: install.yml
+
+- name: Création des OSD
+  include_tasks: create_osd.yml
