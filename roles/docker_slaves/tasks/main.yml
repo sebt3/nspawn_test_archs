@@ -1,1 +1,6 @@
 ---
+- name: Installation des binaires
+  include_tasks: install.yml
+
+- name: Rejoindre le cluster en temps que "slave"
+  include_tasks: join.yml

@@ -5,6 +5,8 @@
       - systemd-container
       - debootstrap
       - rsync
+      - ntpdate
+      
     state: present
 
 - name: Allow for unprivileged userNameSpace clone
